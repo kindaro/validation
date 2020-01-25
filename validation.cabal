@@ -51,7 +51,6 @@ library
                     , semigroups    >= 0.8 && < 1
                     , semigroupoids >= 5   && < 6
                     , bifunctors    >= 5.1 && < 6
-                    , lens          >= 4   && < 5
   if impl(ghc>=7.2) && impl(ghc<7.5)
     build-depends: ghc-prim == 0.2.0.0
 
@@ -100,7 +99,6 @@ test-suite hunit
   build-depends:
                       base       >= 3   && < 5
                     , HUnit      >= 1.5 && < 1.7
-                    , lens       >= 4   && < 5
                     , semigroups >= 0.8 && < 1
                     , validation
 

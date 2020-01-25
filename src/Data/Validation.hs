@@ -26,27 +26,10 @@ module Data.Validation
 , codiagonal
 , validationed
 , bindValidation
-  -- * Prisms
-  -- | These prisms are useful for writing code which is polymorphic in its
-  -- choice of Either or Validation. This choice can then be made later by a
-  -- user, depending on their needs.
-  --
-  -- An example of this style of usage can be found
-  -- <https://github.com/qfpl/validation/blob/master/examples/src/PolymorphicEmail.hs here>
-, _Failure
-, _Success
-  -- * Isomorphisms
-, Validate(..)
-, revalidate
 ) where
 
 import Control.Applicative(Applicative((<*>), pure), (<$>))
 import Control.DeepSeq (NFData (rnf))
-import Control.Lens (over, under)
-import Control.Lens.Getter((^.))
-import Control.Lens.Iso(Swapped(..), Iso, iso, from)
-import Control.Lens.Prism(Prism, prism)
-import Control.Lens.Review(( # ))
 import Data.Bifoldable(Bifoldable(bifoldr))
 import Data.Bifunctor(Bifunctor(bimap))
 import Data.Bitraversable(Bitraversable(bitraverse))
@@ -185,17 +168,6 @@ instance Monoid e => Monoid (Validation e a) where
     Failure mempty
   {-# INLINE mempty #-}
 
-instance Swapped Validation where
-  swapped =
-    iso
-      (\v -> case v of
-        Failure e -> Success e
-        Success a -> Failure a)
-      (\v -> case v of
-        Failure a -> Success a
-        Success e -> Failure e)
-  {-# INLINE swapped #-}
-
 instance (NFData e, NFData a) => NFData (Validation e a) where
   rnf v =
     case v of
@@ -210,10 +182,10 @@ instance (NFData e, NFData a) => NFData (Validation e a) where
 -- @
 -- validate :: e -> (a -> Maybe b) -> a -> Validation e b
 -- @
-validate :: Validate v => e -> (a -> Maybe b) -> a -> v e b
+validate :: e -> (a -> Maybe b) -> a -> Validation e b
 validate e p a = case p a of
-  Nothing -> _Failure # e
-  Just b  -> _Success # b
+  Nothing -> Failure e
+  Just b  -> Success b
 
 -- | 'validationNel' is 'liftError' specialised to 'NonEmpty' lists, since
 -- they are a common semigroup to use.
@@ -246,10 +218,9 @@ toEither = validation Left Right
 -- @
 -- orElse :: Validation e a -> a -> a
 -- @
-orElse :: Validate v => v e a -> a -> a
-orElse v a = case v ^. _Validation of
-  Failure _ -> a
-  Success x -> x
+orElse :: Validation e a -> a -> a
+orElse (Failure _) a = a
+orElse (Success x) _ = x
 
 -- | Return the @a@ or run the given function over the @e@.
 --
@@ -258,10 +229,9 @@ orElse v a = case v ^. _Validation of
 -- @
 -- valueOr :: (e -> a) -> Validation e a -> a
 -- @
-valueOr :: Validate v => (e -> a) -> v e a -> a
-valueOr ea v = case v ^. _Validation of
-  Failure e -> ea e
-  Success a -> a
+valueOr :: (e -> a) -> Validation e a -> a
+valueOr f (Failure e) = f e
+valueOr _ (Success a) = a
 
 -- | 'codiagonal' gets the value out of either side.
 codiagonal :: Validation a a -> a
@@ -276,11 +246,9 @@ codiagonal = valueOr id
 -- @
 -- ensure :: e -> (a -> Maybe b) -> Validation e a -> Validation e b
 -- @
-ensure :: Validate v => e -> (a -> Maybe b) -> v e a -> v e b
-ensure e p =
-  over _Validation $ \v -> case v of
-    Failure x -> Failure x
-    Success a -> validate e p a
+ensure :: e -> (a -> Maybe b) -> Validation e a -> Validation e b
+ensure _ _ (Failure x) = Failure x
+ensure e p (Success a) = validate e p a
 
 -- | Run a function on anything with a Validate instance (usually Either)
 -- as if it were a function on Validation
@@ -288,8 +256,8 @@ ensure e p =
 -- This can be thought of as having the type
 --
 -- @(Either e a -> Either e' a') -> Validation e a -> Validation e' a'@
-validationed :: Validate v => (v e a -> v e' a') -> Validation e a -> Validation e' a'
-validationed f = under _Validation f
+validationed :: (Either e a -> Either e' a') -> Validation e a -> Validation e' a'
+validationed f = fromEither . f . toEither
 
 -- | @bindValidation@ binds through an Validation, which is useful for
 -- composing Validations sequentially. Note that despite having a bind
@@ -303,73 +271,3 @@ bindValidation :: Validation e a -> (a -> Validation e b) -> Validation e b
 bindValidation v f = case v of
   Failure e -> Failure e
   Success a -> f a
-
--- | The @Validate@ class carries around witnesses that the type @f@ is isomorphic
--- to Validation, and hence isomorphic to Either.
-class Validate f where
-  _Validation ::
-    Iso (f e a) (f g b) (Validation e a) (Validation g b)
-
-  _Either ::
-    Iso (f e a) (f g b) (Either e a) (Either g b)
-  _Either =
-    iso
-      (\x -> case x ^. _Validation of
-        Failure e -> Left e
-        Success a -> Right a)
-      (\x -> _Validation # case x of
-        Left e -> Failure e
-        Right a -> Success a)
-  {-# INLINE _Either #-}
-
-instance Validate Validation where
-  _Validation =
-    id
-  {-# INLINE _Validation #-}
-  _Either =
-    iso
-      (\x -> case x of
-        Failure e -> Left e
-        Success a -> Right a)
-      (\x -> case x of
-        Left e -> Failure e
-        Right a -> Success a)
-  {-# INLINE _Either #-}
-
-instance Validate Either where
-  _Validation =
-    iso
-      fromEither
-      toEither
-  {-# INLINE _Validation #-}
-  _Either =
-    id
-  {-# INLINE _Either #-}
-
--- | This prism generalises 'Control.Lens.Prism._Left'. It targets the failure case of either 'Either' or 'Validation'.
-_Failure ::
-  Validate f =>
-  Prism (f e1 a) (f e2 a) e1 e2
-_Failure =
-  prism
-    (\x -> _Either # Left x)
-    (\x -> case x ^. _Either of
-             Left e -> Right e
-             Right a -> Left (_Either # Right a))
-{-# INLINE _Failure #-}
-
--- | This prism generalises 'Control.Lens.Prism._Right'. It targets the success case of either 'Either' or 'Validation'.
-_Success ::
-  Validate f =>
-  Prism (f e a) (f e b) a b
-_Success =
-  prism
-    (\x -> _Either # Right x)
-    (\x -> case x ^. _Either of
-             Left e -> Left (_Either # Left e)
-             Right a -> Right a)
-{-# INLINE _Success #-}
-
--- | 'revalidate' converts between any two instances of 'Validate'.
-revalidate :: (Validate f, Validate g) => Iso (f e1 s) (f e2 t) (g e1 s) (g e2 t)
-revalidate = _Validation . from _Validation
