@@ -1,15 +1,11 @@
 # Validation
 
-![CSIRO's Data61 Logo](https://raw.githubusercontent.com/qfpl/assets/master/data61-transparent-bg.png)
-
 Several data-types like Either but with differing properties and type-class
 instances.
 
-Library support is provided for those different representations, include
-`lens`-related functions for converting between each and abstracting over their
-similarities.
-
-Download from [hackage](http://hackage.haskell.org/package/validation).
+This package is identical to `validation`, but with the `lens` dependency
+removed. Therefore, it is easier to understand and faster to build, but some
+features are absent.
 
 * `Validation`
 
