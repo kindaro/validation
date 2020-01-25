@@ -1,23 +1,21 @@
-name:               validation
+name:               validation-lightweight
 version:            1.1
 license:            BSD3
 license-file:       LICENCE
 author:             Tony Morris <ʇǝu˙sıɹɹoɯʇ@ןןǝʞsɐɥ> <dibblego>, Nick Partridge <nkpart>
-maintainer:         Tony Morris <ʇǝu˙sıɹɹoɯʇ@ןןǝʞsɐɥ> <dibblego>, Nick Partridge <nkpart>, Queensland Functional Programming Lab <oᴉ˙ldɟb@llǝʞsɐɥ>
+maintainer:         Ignat Insarov <kindaro@gmail.com>
 copyright:          Copyright (C) 2010-2013 Tony Morris, Nick Partridge
                     Copyright (C) 2014,2015 NICTA Limited
                     Copyright (c) 2016-2019, Commonwealth Scientific and Industrial Research Organisation (CSIRO) ABN 41 687 119 230.
 synopsis:           A data-type like Either but with an accumulating Applicative
 category:           Data
 description:
-  <<https://raw.githubusercontent.com/qfpl/assets/master/data61-transparent-bg.png>>
-  .
   A data-type like Either but with differing properties and type-class
   instances.
   .
-  Library support is provided for this different representation, include
-  `lens`-related functions for converting between each and abstracting over their
-  similarities.
+  This package is identical to `validation`, but with the `lens` dependency
+  removed. Therefore, it is easier to understand and faster to build, but some
+  features are absent.
   .
   * `Validation`
   .
@@ -30,8 +28,8 @@ description:
   `Bind` or `Monad` instance. `Validation` is an example of, "An applicative
   functor that is not a monad."
 
-homepage:           https://github.com/qfpl/validation
-bug-reports:        https://github.com/qfpl/validation/issues
+homepage:           https://github.com/kindaro/validation
+bug-reports:        https://github.com/kindaro/validation/issues
 cabal-version:      >= 1.10
 build-type:         Simple
 extra-source-files: changelog
@@ -39,7 +37,7 @@ tested-with:        GHC==8.6.4, GHC==8.4.4, GHC==8.2.2, GHC==8.0.2, GHC==7.10.3,
 
 source-repository   head
   type:             git
-  location:         git@github.com:qfpl/validation.git
+  location:         git@github.com:kindaro/validation.git
 
 library
   default-language:
