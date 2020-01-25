@@ -5,11 +5,9 @@ module Main (main) where
 import Test.HUnit
 
 import Prelude hiding (length)
-import Control.Lens ((#))
 import Control.Monad (when)
 import Data.Foldable (length)
-import Data.Proxy (Proxy (Proxy))
-import Data.Validation (Validation (Success, Failure), Validate, _Failure, _Success, ensure,
+import Data.Validation (Validation (Success, Failure), ensure,
                         orElse, validate, validation, validationNel)
 import System.Exit (exitFailure)
 
@@ -24,25 +22,25 @@ four = 4
 
 testYY :: Test
 testYY =
-  let subject  = _Success # (+1) <*> _Success # seven :: Validation String Int
+  let subject  = Success (+1) <*> Success seven :: Validation String Int
       expected = Success 8
   in  TestCase (assertEqual "Success <*> Success" subject expected)
 
 testNY :: Test
 testNY =
-  let subject  = _Failure # ["f1"] <*> _Success # seven :: Validation [String] Int
+  let subject  = Failure ["f1"] <*> Success seven :: Validation [String] Int
       expected = Failure ["f1"]
   in  TestCase (assertEqual "Failure <*> Success" subject expected)
 
 testYN :: Test
 testYN =
-  let subject  = _Success # (+1) <*> _Failure # ["f2"] :: Validation [String] Int
+  let subject  = Success (+1) <*> Failure ["f2"] :: Validation [String] Int
       expected = Failure ["f2"]
   in  TestCase (assertEqual "Success <*> Failure" subject expected)
 
 testNN :: Test
 testNN =
-  let subject  = _Failure # ["f1"] <*> _Failure # ["f2"] :: Validation [String] Int
+  let subject  = Failure ["f1"] <*> Failure ["f2"] :: Validation [String] Int
       expected = Failure ["f1","f2"]
   in  TestCase (assertEqual "Failure <*> Failure" subject expected)
 
@@ -53,42 +51,42 @@ testValidationNel =
 
 testEnsureLeftNothing, testEnsureLeftJust, testEnsureRightNothing,
  testEnsureRightJust, testEnsureRightJust', testOrElseRight, testOrElseLeft
-  :: forall v. (Validate v, Eq (v Int Int), Show (v Int Int)) => Proxy v -> Test
+  :: Test
 
-testEnsureLeftNothing _ =
-  let subject :: v Int Int
-      subject = ensure three (const Nothing) (_Failure # seven)
-  in  TestCase (assertEqual "ensure Left False" subject (_Failure # seven))
+testEnsureLeftNothing =
+  let subject :: Validation Int Int
+      subject = ensure three (const Nothing) (Failure seven)
+  in  TestCase (assertEqual "ensure Left False" subject (Failure seven))
 
-testEnsureLeftJust _ =
-  let subject :: v Int Int
-      subject = ensure three (Just . id) (_Failure # seven)
-  in  TestCase (assertEqual "ensure Left True" subject (_Failure # seven))
+testEnsureLeftJust =
+  let subject :: Validation Int Int
+      subject = ensure three (Just . id) (Failure seven)
+  in  TestCase (assertEqual "ensure Left True" subject (Failure seven))
 
-testEnsureRightNothing _ =
-  let subject :: v Int Int
-      subject = ensure three (const Nothing) (_Success # seven)
-  in  TestCase (assertEqual "ensure Right False" subject (_Failure # three))
+testEnsureRightNothing =
+  let subject :: Validation Int Int
+      subject = ensure three (const Nothing) (Success seven)
+  in  TestCase (assertEqual "ensure Right False" subject (Failure three))
 
-testEnsureRightJust _ =
-  let subject :: v Int Int
-      subject = ensure three (Just . id) (_Success # seven)
-  in  TestCase (assertEqual "ensure Right True" subject (_Success # seven))
+testEnsureRightJust =
+  let subject :: Validation Int Int
+      subject = ensure three (Just . id) (Success seven)
+  in  TestCase (assertEqual "ensure Right True" subject (Success seven))
 
-testEnsureRightJust' _ =
-  let subject :: v Int Int
-      subject = ensure three (const $ Just four) (_Success # seven)
-  in  TestCase (assertEqual "ensure Right True" subject (_Success # four))
+testEnsureRightJust' =
+  let subject :: Validation Int Int
+      subject = ensure three (const $ Just four) (Success seven)
+  in  TestCase (assertEqual "ensure Right True" subject (Success four))
 
-testOrElseRight _ =
-  let v :: v Int Int
-      v = _Success # seven
+testOrElseRight =
+  let v :: Validation Int Int
+      v = Success seven
       subject = v `orElse` three
   in  TestCase (assertEqual "orElseRight" subject seven)
 
-testOrElseLeft _ =
-  let v :: v Int Int
-      v = _Failure # seven
+testOrElseLeft =
+  let v :: Validation Int Int
+      v = Failure seven
       subject = v `orElse` three
   in  TestCase (assertEqual "orElseLeft" subject three)
 
@@ -112,25 +110,8 @@ testValidateNothing =
   in  TestCase (assertEqual "testValidateFalse" subject expected)
 
 tests :: Test
-tests =
-  let eitherP :: Proxy Either
-      eitherP = Proxy
-      validationP :: Proxy Validation
-      validationP = Proxy
-      generals :: forall v. (Validate v, Eq (v Int Int), Show (v Int Int)) => [Proxy v -> Test]
-      generals =
-        [ testEnsureLeftNothing
-        , testEnsureLeftJust
-        , testEnsureRightNothing
-        , testEnsureRightJust
-        , testEnsureRightJust' 
-        , testOrElseLeft
-        , testOrElseRight
-        ]
-      eithers = fmap ($ eitherP) generals
-      validations = fmap ($ validationP) generals
-  in  TestList $ [
-    testYY
+tests = TestList $
+  [ testYY
   , testYN
   , testNY
   , testNN
@@ -138,8 +119,14 @@ tests =
   , testValidateNothing
   , testValidateJust
   , testValidateJust'
-  ] ++ eithers ++ validations
-  where
+  , testEnsureLeftNothing
+  , testEnsureLeftJust
+  , testEnsureRightNothing
+  , testEnsureRightJust
+  , testEnsureRightJust' 
+  , testOrElseLeft
+  , testOrElseRight
+  ]
 
 main :: IO ()
 main = do
